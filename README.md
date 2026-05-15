@@ -340,3 +340,5 @@ For issues and questions:
 ---
 
 **Built with ❤️ for the fintech industry**
+#   W a l l e t E a s e  
+ 
