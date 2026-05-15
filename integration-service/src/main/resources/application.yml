@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: integration-service
+
+server:
+  port: ${SERVER_PORT:8081}
+
+internal:
+  api:
+    key: ${INTERNAL_API_KEY:internal-secret-key-for-service-communication}
+
+logging:
+  level:
+    com.integration: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

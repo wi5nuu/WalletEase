@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: payflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: payflow
+      POSTGRES_USER: payflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payflow -d payflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - payflow-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: payflow-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/payflow
+      DB_USERNAME: payflow
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-here-must-be-at-least-32-characters-long}
+      JWT_ACCESS_EXPIRY_MS: ${JWT_ACCESS_EXPIRY_MS:-900000}
+      JWT_REFRESH_EXPIRY_MS: ${JWT_REFRESH_EXPIRY_MS:-604800000}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-internal-secret-key-for-service-communication}
+      INTEGRATION_SERVICE_URL: http://integration-service:8081
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    networks:
+      - payflow-net
+
+  integration-service:
+    build:
+      context: ./integration-service
+      dockerfile: Dockerfile
+    container_name: payflow-integration
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: 8081
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-internal-secret-key-for-service-communication}
+    ports:
+      - "8081:8081"
+    networks:
+      - payflow-net
+
+  # Mock backend for frontend development (optional - runs on 8082)
+  mock-backend:
+    build:
+      context: ./mock-backend
+      dockerfile: Dockerfile
+    container_name: payflow-mock
+    restart: unless-stopped
+    ports:
+      - "8082:8081"
+    networks:
+      - payflow-net
+    profiles:
+      - dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: payflow-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - payflow-net
+
+volumes:
+  postgres_data:
+
+networks:
+  payflow-net:
+    driver: bridge
